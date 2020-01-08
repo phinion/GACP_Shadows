@@ -15,12 +15,11 @@
 #include "Skybox.h"
 
 void setCameraViewTransforms(Shader _shader);
+
 void renderScene(Shader _shader, Model _samus, Cube _cube, Plane _plane);
 void renderSkybox(Skybox _skybox, Shader _shader);
 
-unsigned int loadTexture(const char *path);
-void rrenderScene(const Shader &shader);
-void renderCube();
+void rrenderScene(Shader _shader, Model _model, Cube _cube, Plane _plane, bool withTextures);
 
 void framebuffer_size_callback(GLFWwindow* window, int screenWidth, int screenHeight);
 void processInput(GLFWwindow *window);
@@ -31,6 +30,10 @@ const unsigned int screenWidth = 1280;
 const unsigned int screenHeight = 720;
 bool shadows = true;
 bool shadowsKeyPressed = false;
+bool MoveLight = true;
+bool MoveLightKeypressed = false;
+
+unsigned int depthCubemap;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), -90.0f, 0.0f);
@@ -85,7 +88,6 @@ int main() {
 	glGenFramebuffers(1, &depthMapFBO);
 
 	// create depth cubemap texture
-	unsigned int depthCubemap;
 	glGenTextures(1, &depthCubemap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 	for (unsigned int i = 0; i < 6; ++i)
@@ -108,7 +110,6 @@ int main() {
 	Shader skyboxShader("skybox.vert", "skybox.frag");
 	Shader shader("pointLShadows.vert", "pointLShadows.frag");
 	Shader simpleDepthShader("pointLShadowsDepth.vert", "pointLShadowsDepth.frag","pointLShadowsDepth.geo");
-	unsigned int woodTexture = loadTexture("container.png");
 
 	// shader configuration
 	// --------------------
@@ -117,8 +118,14 @@ int main() {
 	shader.setInt("depthMap", 1);
 
 	Model samus("Samus/DolSzerosuitR1.obj");
-	Cube container("container.png", "container_specular.png");
-	Plane plane("plane.jpg", "plane_specular.jpg");
+
+	Cube container;
+	container.loadTexture("container.png");
+	//container.loadTexture("container_specular.png");
+
+	Plane plane;
+	plane.loadTexture("plane.jpg");
+	//plane.loadTexture("plane_specular.jpg");
 	
 	// Skybox textures
 	std::vector<std::string> faces
@@ -148,7 +155,10 @@ int main() {
 		processInput(window);
 
 		// move light position over time
-		lightPos.z = sin(glfwGetTime() * 0.5) * 3.0;
+		if (MoveLight) {
+			lightPos = camera.position;
+			//lightPos.z = sin(glfwGetTime() * 0.5) * 3.0;
+		}
 
 		// rendering commands here
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -177,9 +187,9 @@ int main() {
 			simpleDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
 		simpleDepthShader.setFloat("far_plane", far_plane);
 		simpleDepthShader.setVec3("lightPos", lightPos);
-		rrenderScene(simpleDepthShader);
+		rrenderScene(simpleDepthShader,samus,container,plane,false);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+		
 		// 2. render scene as normal 
 		// -------------------------
 		glViewport(0, 0, screenWidth, screenHeight);
@@ -194,11 +204,12 @@ int main() {
 		shader.setVec3("viewPos", camera.position);
 		shader.setInt("shadows", shadows); // enable/disable shadows by pressing 'SPACE'
 		shader.setFloat("far_plane", far_plane);
-		glActiveTexture(GL_TEXTURE0);
+		/*glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, woodTexture);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-		rrenderScene(shader);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);*/
+		rrenderScene(shader, samus,container,plane,true);
+		renderSkybox(skybox,skyboxShader);
 
 		// check and call events and swap the buffers
 		glfwPollEvents();
@@ -226,7 +237,7 @@ void renderScene(Shader _shader, Model _samus, Cube _cube, Plane _plane)
 {
 	_shader.use();
 
-	/*_shader.setInt("material.diffuse", 0);
+	_shader.setInt("material.diffuse", 0);
 	_shader.setInt("material.specular", 1);
 	_shader.setFloat("material.shininess", 32.0f);
 
@@ -236,20 +247,20 @@ void renderScene(Shader _shader, Model _samus, Cube _cube, Plane _plane)
 	_shader.setVec3("pointLight.specular", 1.0f, 1.0f, 1.0f);
 	_shader.setFloat("pointLight.constant", 1.0f);
 	_shader.setFloat("pointLight.linear", 0.09);
-	_shader.setFloat("pointLight.quadratic", 0.032);*/
+	_shader.setFloat("pointLight.quadratic", 0.032);
 
 	// render the loaded model
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(5.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
 	model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));	// it's a bit too big for our scene, so scale it down
 	_shader.setMat4("model", model);
-	_samus.Draw(_shader);
+	//_samus.Draw(_shader);
 
 	//render cube
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
 	_shader.setMat4("model", model);
-	_cube.draw();
+	//_cube.draw();
 
 	//render plane
 	model = glm::mat4(1.0f);
@@ -299,6 +310,15 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.Move(RIGHT, deltaTime);
 
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !MoveLightKeypressed) {
+		MoveLightKeypressed = true;
+		MoveLight = !MoveLight;
+	}
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE)
+	{
+		MoveLightKeypressed = false;
+	}
+
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !shadowsKeyPressed)
 	{
 		shadows = !shadows;
@@ -317,159 +337,78 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 // renders the 3D scene
 // --------------------
-void rrenderScene(const Shader &shader)
+void rrenderScene(Shader _shader, Model _model, Cube _cube, Plane _plane, bool withTextures = false)
 {
-	// room cube
 	glm::mat4 model = glm::mat4(1.0f);
-	Plane plane("plane.jpg", "plane_specular.jpg");
+
+	// Floor plane
+	if (withTextures) {
+		_plane.bindTextures(depthCubemap);
+	}
+	model = glm::mat4(1.0f);
 	model = glm::scale(model, glm::vec3(10.0f, 1.0f, 10.0f));
-	shader.setMat4("model", model);
-	plane.draw();
+	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0));
+	_shader.setMat4("model", model);
+	_plane.draw();
 	
-	plane.draw();
+	if (withTextures)
+		_cube.bindTextures(depthCubemap);
+
 	//model = glm::scale(model, glm::vec3(5.0f));
-	//shader.setMat4("model", model);
+	//_shader.setMat4("model", model); 
 	//glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-	//shader.setInt("reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-	//renderCube();
-	//shader.setInt("reverse_normals", 0); // and of course disable it
+	//_shader.setInt("reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
+	//_cube.draw();
+
+	//_shader.setInt("reverse_normals", 0); // and of course disable it
 	//glEnable(GL_CULL_FACE);
+
 	// cubes
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
 	model = glm::scale(model, glm::vec3(0.5f));
-	shader.setMat4("model", model);
-	renderCube();
+	_shader.setMat4("model", model);
+	_cube.draw();
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
 	model = glm::scale(model, glm::vec3(0.75f));
-	shader.setMat4("model", model);
-	renderCube();
+	_shader.setMat4("model", model);
+	_cube.draw();
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
 	model = glm::scale(model, glm::vec3(0.5f));
-	shader.setMat4("model", model);
-	renderCube();
+	_shader.setMat4("model", model);
+	_cube.draw();
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
 	model = glm::scale(model, glm::vec3(0.5f));
-	shader.setMat4("model", model);
-	renderCube();
+	_shader.setMat4("model", model);
+	_cube.draw();
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
 	model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
 	model = glm::scale(model, glm::vec3(0.75f));
-	shader.setMat4("model", model);
-	renderCube();
-}
+	_shader.setMat4("model", model);
+	_cube.draw();
 
-// renderCube() renders a 1x1 3D cube in NDC.
-// -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
-void renderCube()
-{
-	// initialize (if necessary)
-	if (cubeVAO == 0)
+
+	// model
+	//Bind correct textures
+	
+
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(5.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+	model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));	// it's a bit too big for our scene, so scale it down
+	_shader.setMat4("model", model);
+	if (withTextures)
 	{
-		float vertices[] = {
-			// back face
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			-1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-			// front face
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			-1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			// left face
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			-1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			// right face
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-			// bottom face
-			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			// top face
-			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			 1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-			 1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			-1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-		};
-		glGenVertexArrays(1, &cubeVAO);
-		glGenBuffers(1, &cubeVBO);
-		// fill buffer
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		// link vertex attributes
-		glBindVertexArray(cubeVAO);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
+		_model.DrawWithTextures(_shader, depthCubemap);
 	}
-	// render Cube
-	glBindVertexArray(cubeVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
-}
-unsigned int loadTexture(char const * path)
-{
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-
-	int width, height, nrComponents;
-	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-	if (data)
+	else 
 	{
-		GLenum format;
-		if (nrComponents == 1)
-			format = GL_RED;
-		else if (nrComponents == 3)
-			format = GL_RGB;
-		else if (nrComponents == 4)
-			format = GL_RGBA;
-
-		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		stbi_image_free(data);
+		_model.Draw();
 	}
-	else
-	{
-		std::cout << "Texture failed to load at path: " << path << std::endl;
-		stbi_image_free(data);
-	}
+	
 
-	return textureID;
+
 }

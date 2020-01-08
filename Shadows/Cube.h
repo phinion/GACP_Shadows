@@ -9,18 +9,21 @@
 #include "stb_image.h"
 
 #include <iostream>
+#include <vector>
 
 
 class Cube {
 public:
-	Cube(char const * diffuseTexturePath, char const * specularTexturePath);
+	
 	unsigned int VAO;
-	unsigned int diffuseMap, specularMap;
+	
+	Cube();
+	void loadTexture(char const * path);
+	void bindTextures(unsigned int _shadowCubemap);
 	void draw();
 private:
 	unsigned int VBO;
-	void configureCube();
-	unsigned int loadTexture(char const * path);
+	std::vector<unsigned int> textures;
 };
 
 #endif

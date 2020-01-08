@@ -1,13 +1,7 @@
 #include "Cube.h"
 
-Cube::Cube(char const * diffuseTexturePath, char const * specularTexturePath) {
-	configureCube(); 
-	
-	diffuseMap = loadTexture(diffuseTexturePath);
-	specularMap = loadTexture(specularTexturePath);
-};
+Cube::Cube() {
 
-void Cube::configureCube() {
 	float cubings[] = {
 		// positions          // normals           // texture coords
 	    -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
@@ -73,26 +67,36 @@ void Cube::configureCube() {
 	//unbind
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
+	
+	//diffuseMap = loadTexture(diffuseTexturePath);
+	//specularMap = loadTexture(specularTexturePath);
+};
+
+void Cube::bindTextures(unsigned int _shadowCubemap)
+{
+	for (int a = 0; a < textures.size(); a++)
+	{
+		glActiveTexture(GL_TEXTURE0 + a);
+		glBindTexture(GL_TEXTURE_2D, textures[a]);
+	}
+
+	glActiveTexture(GL_TEXTURE0 + textures.size());
+	glBindTexture(GL_TEXTURE_CUBE_MAP, _shadowCubemap);
 
 }
 
-void Cube::draw() {
-	// bind diffuse map
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, diffuseMap);
-	// bind specular map
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, specularMap);
-
+void Cube::draw() 
+{
 	// render cube
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 
 	//unbind
 	glBindVertexArray(0);
+	glActiveTexture(GL_TEXTURE0);
 }
 
-unsigned int Cube::loadTexture(char const * path)
+void Cube::loadTexture(char const * path)
 {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -118,13 +122,13 @@ unsigned int Cube::loadTexture(char const * path)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		stbi_image_free(data);
+		textures.push_back(textureID);
+
 	}
 	else
 	{
 		std::cout << "Texture failed to load at path: " << path << std::endl;
-		stbi_image_free(data);
 	}
 
-	return textureID;
+	stbi_image_free(data);
 }

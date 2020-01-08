@@ -9,16 +9,18 @@
 #include "stb_image.h"
 
 #include <iostream>
+#include <vector>
 
 class Plane {
 public:
-	Plane(char const * diffuseTexturePath, char const * specularTexturePath);
 	unsigned int VAO;
-	unsigned int diffuseMap, specularMap;
+	
+	Plane();
+	void loadTexture(char const * path);
+	void bindTextures(unsigned int _shadowCubemap);
 	void draw();
 private:
 	unsigned int VBO;
-	void configurePlane();
-	unsigned int loadTexture(char const * path);
+	std::vector<unsigned int> textures;	
 };
 #endif

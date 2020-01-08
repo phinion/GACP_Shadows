@@ -1,1 +1,11 @@
-﻿  Shadows.vcxproj -> D:\Yash Files\Documents\Graphics And Computational Programming\Shadows\Debug\Shadows.exe
+﻿  Main.cpp
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(150): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(249): warning C4305: 'argument': truncation from 'double' to 'float'
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(250): warning C4305: 'argument': truncation from 'double' to 'float'
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(286): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(287): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(291): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(292): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(293): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+d:\yash files\documents\graphics and computational programming\shadows\shadows\main.cpp(294): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  Shadows.vcxproj -> D:\Yash Files\Documents\Graphics And Computational Programming\Shadows\Debug\Shadows.exe

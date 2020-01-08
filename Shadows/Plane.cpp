@@ -1,14 +1,6 @@
 #include "Plane.h"
 
-Plane::Plane(char const * diffuseTexturePath, char const * specularTexturePath) {
-	configurePlane(); 
-
-	diffuseMap = loadTexture(diffuseTexturePath);
-	specularMap = loadTexture(specularTexturePath);
-};
-
-void Plane::configurePlane() {
-
+Plane::Plane() {
 	float planeington[] = {
 		// positions          // normals           // texture coords
 	   -1.0f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
@@ -35,22 +27,33 @@ void Plane::configurePlane() {
 	// texture attribute
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glEnableVertexAttribArray(2);
+};
+
+void Plane::bindTextures(unsigned int _shadowCubemap)
+{
+	for (int a = 0; a < textures.size(); a++)
+	{
+		glActiveTexture(GL_TEXTURE0 + a);
+		glBindTexture(GL_TEXTURE_2D, textures[a]);
+	}
+
+	glActiveTexture(GL_TEXTURE0 + textures.size());
+	glBindTexture(GL_TEXTURE_CUBE_MAP, _shadowCubemap);
 
 }
 
 void Plane::draw() {
-	// bind diffuse map
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, diffuseMap);
-	// bind specular map
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, specularMap);
-
-	// render cube
+	// render plane
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	//unbind
+	glBindVertexArray(0);
+	glActiveTexture(GL_TEXTURE0);
 }
-unsigned int Plane::loadTexture(char const * path)
+
+
+void Plane::loadTexture(char const * path)
 {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -76,13 +79,13 @@ unsigned int Plane::loadTexture(char const * path)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		stbi_image_free(data);
+		textures.push_back(textureID);
 	}
 	else
 	{
 		std::cout << "Texture failed to load at path: " << path << std::endl;
-		stbi_image_free(data);
 	}
 
-	return textureID;
+	stbi_image_free(data);
+	
 }

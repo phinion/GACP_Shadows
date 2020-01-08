@@ -38,6 +38,7 @@ public:
 	vector<unsigned int> indices;
 	vector<Texture> textures;
 	unsigned int VAO;
+	//unsigned int shadowMap
 
 	/*  Functions  */
 	// constructor
@@ -51,9 +52,12 @@ public:
 		setupMesh();
 	}
 
-	// render the mesh
-	void Draw(Shader shader)
-	{
+	//bindTextures
+
+	void DrawWithTextures(Shader shader, unsigned int _shadowCubemap = 0) {
+
+		std::cout << textures.size() << std::endl;
+
 		// bind appropriate textures
 		unsigned int diffuseNr = 1;
 		unsigned int specularNr = 1;
@@ -80,13 +84,25 @@ public:
 			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
 
+		if (_shadowCubemap != 0)
+		{
+			glActiveTexture(GL_TEXTURE0 + textures.size());
+			glBindTexture(GL_TEXTURE_CUBE_MAP, _shadowCubemap);
+		}
+
+		Draw();
+	}
+
+	// render the mesh
+	void Draw()
+	{
 		// draw mesh
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
-		glBindVertexArray(0);
-
+		
 		// always good practice to set everything back to defaults once configured.
 		glActiveTexture(GL_TEXTURE0);
+		glBindVertexArray(0);
 	}
 
 private:
