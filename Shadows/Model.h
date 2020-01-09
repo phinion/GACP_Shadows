@@ -17,13 +17,14 @@
 #include <vector>
 
 #include "stb_image.h"
+#include "TransformComponent.h"
 
 
 using namespace std;
 
 unsigned int TextureFromFile(const char *path, const string &directory, bool gamma = false);
 
-class Model
+class Model : public Transform
 {
 public:
 	/*  Model Data */

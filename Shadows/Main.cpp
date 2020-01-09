@@ -10,16 +10,16 @@
 #include "Camera.h"
 #include "Model.h"
 #include "Shader.h"
+#include "Room.h"
 #include "Cube.h"
 #include "Plane.h"
 #include "Skybox.h"
+#include "TransformComponent.h"
 
 void setCameraViewTransforms(Shader _shader);
 
-void renderScene(Shader _shader, Model _samus, Cube _cube, Plane _plane);
+void renderScene(Shader _shader, Room _room, Model _model, Cube _cube, Plane _plane, bool withTextures);
 void renderSkybox(Skybox _skybox, Shader _shader);
-
-void rrenderScene(Shader _shader, Model _model, Cube _cube, Plane _plane, bool withTextures);
 
 void framebuffer_size_callback(GLFWwindow* window, int screenWidth, int screenHeight);
 void processInput(GLFWwindow *window);
@@ -54,7 +54,7 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// Create Window
-	GLFWwindow* window = glfwCreateWindow(800, 600, "Shadows Demo - Yash V", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Shadows Demo - Yash V", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -117,7 +117,19 @@ int main() {
 	shader.setInt("diffuseTexture", 0);
 	shader.setInt("depthMap", 1);
 
-	Model samus("Samus/DolSzerosuitR1.obj");
+	//Model samus("Samus/DolSzerosuitR1.obj");
+
+	Room room;
+	room.loadTexture("Textures/Wallpaper/1_Wallpaper design by Natasha Marsall_diffuse.jpg");
+	room.loadTexture("Textures/Wallpaper/1_Wallpaper design by Natasha Marsall_specular.jpg");
+	room.loadTexture("Textures/whiteness.jpg");
+	//room.loadTexture("Textures/whiteness.jpg");
+	room.setScale(glm::vec3(10.0f,5.0f,10.0f));
+	room.setPos(glm::vec3(0.0f,5.0f,0.0f));
+
+	Model samus("Models/obj_mesa/obj_mesa.obj");
+	samus.setScale(glm::vec3(3.0f));
+	samus.setPos(glm::vec3(3.0f, 0.0f, 3.0f));
 
 	Cube container;
 	container.loadTexture("container.png");
@@ -187,7 +199,7 @@ int main() {
 			simpleDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
 		simpleDepthShader.setFloat("far_plane", far_plane);
 		simpleDepthShader.setVec3("lightPos", lightPos);
-		rrenderScene(simpleDepthShader,samus,container,plane,false);
+		renderScene(simpleDepthShader,room,samus,container,plane,false);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		
 		// 2. render scene as normal 
@@ -208,7 +220,7 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, woodTexture);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);*/
-		rrenderScene(shader, samus,container,plane,true);
+		renderScene(shader, room, samus,container,plane,true);
 		renderSkybox(skybox,skyboxShader);
 
 		// check and call events and swap the buffers
@@ -233,11 +245,11 @@ void setCameraViewTransforms(Shader _shader)
 }
 
 
-void renderScene(Shader _shader, Model _samus, Cube _cube, Plane _plane) 
+void renderScene(Shader _shader, Room _room, Model _model, Cube _cube, Plane _plane, bool withTextures = false)
 {
-	_shader.use();
+	glm::mat4 model = glm::mat4(1.0f);
 
-	_shader.setInt("material.diffuse", 0);
+	/*_shader.setInt("material.diffuse", 0);
 	_shader.setInt("material.specular", 1);
 	_shader.setFloat("material.shininess", 32.0f);
 
@@ -247,26 +259,71 @@ void renderScene(Shader _shader, Model _samus, Cube _cube, Plane _plane)
 	_shader.setVec3("pointLight.specular", 1.0f, 1.0f, 1.0f);
 	_shader.setFloat("pointLight.constant", 1.0f);
 	_shader.setFloat("pointLight.linear", 0.09);
-	_shader.setFloat("pointLight.quadratic", 0.032);
+	_shader.setFloat("pointLight.quadratic", 0.032);*/
 
-	// render the loaded model
-	glm::mat4 model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(5.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-	model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));	// it's a bit too big for our scene, so scale it down
+	//Render Room
+	model = _room.getModel();
 	_shader.setMat4("model", model);
-	//_samus.Draw(_shader);
+	if (withTextures){
+		_room.bindTextures(depthCubemap);
+	}
+	else {
+		_room.draw();
+	}
 
-	//render cube
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
-	_shader.setMat4("model", model);
-	//_cube.draw();
-
-	//render plane
+	//// Floor plane
+	/*if (withTextures) {
+		_plane.bindTextures(depthCubemap);
+	}
 	model = glm::mat4(1.0f);
 	model = glm::scale(model, glm::vec3(10.0f, 1.0f, 10.0f));
+	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0));
 	_shader.setMat4("model", model);
-	_plane.draw();
+	_plane.draw();*/
+
+
+	//// cubes
+	//if (withTextures){
+	//	_cube.bindTextures(depthCubemap);
+	//}
+	//model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
+	//model = glm::scale(model, glm::vec3(0.5f));
+	//_shader.setMat4("model", model);
+	//_cube.draw();
+	//model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
+	//model = glm::scale(model, glm::vec3(0.75f));
+	//_shader.setMat4("model", model);
+	//_cube.draw();
+	//model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
+	//model = glm::scale(model, glm::vec3(0.5f));
+	//_shader.setMat4("model", model);
+	//_cube.draw();
+	//model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
+	//model = glm::scale(model, glm::vec3(0.5f));
+	//_shader.setMat4("model", model);
+	//_cube.draw();
+	//model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
+	//model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+	//model = glm::scale(model, glm::vec3(0.75f));
+	//_shader.setMat4("model", model);
+	//_cube.draw();
+
+	// model
+	model = _model.getModel();
+	_shader.setMat4("model", model);
+	if (withTextures)
+	{
+		_model.DrawWithTextures(_shader, depthCubemap);
+	}
+	else
+	{
+		_model.Draw();
+	}
 }
 
 void renderSkybox(Skybox _skybox,Shader _shader) 
@@ -333,82 +390,4 @@ void processInput(GLFWwindow *window)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
-}
-
-// renders the 3D scene
-// --------------------
-void rrenderScene(Shader _shader, Model _model, Cube _cube, Plane _plane, bool withTextures = false)
-{
-	glm::mat4 model = glm::mat4(1.0f);
-
-	// Floor plane
-	if (withTextures) {
-		_plane.bindTextures(depthCubemap);
-	}
-	model = glm::mat4(1.0f);
-	model = glm::scale(model, glm::vec3(10.0f, 1.0f, 10.0f));
-	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0));
-	_shader.setMat4("model", model);
-	_plane.draw();
-	
-	if (withTextures)
-		_cube.bindTextures(depthCubemap);
-
-	//model = glm::scale(model, glm::vec3(5.0f));
-	//_shader.setMat4("model", model); 
-	//glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-	//_shader.setInt("reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-	//_cube.draw();
-
-	//_shader.setInt("reverse_normals", 0); // and of course disable it
-	//glEnable(GL_CULL_FACE);
-
-	// cubes
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
-	model = glm::scale(model, glm::vec3(0.5f));
-	_shader.setMat4("model", model);
-	_cube.draw();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
-	model = glm::scale(model, glm::vec3(0.75f));
-	_shader.setMat4("model", model);
-	_cube.draw();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
-	model = glm::scale(model, glm::vec3(0.5f));
-	_shader.setMat4("model", model);
-	_cube.draw();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
-	model = glm::scale(model, glm::vec3(0.5f));
-	_shader.setMat4("model", model);
-	_cube.draw();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
-	model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-	model = glm::scale(model, glm::vec3(0.75f));
-	_shader.setMat4("model", model);
-	_cube.draw();
-
-
-	// model
-	//Bind correct textures
-	
-
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(5.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-	model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));	// it's a bit too big for our scene, so scale it down
-	_shader.setMat4("model", model);
-	if (withTextures)
-	{
-		_model.DrawWithTextures(_shader, depthCubemap);
-	}
-	else 
-	{
-		_model.Draw();
-	}
-	
-
-
 }

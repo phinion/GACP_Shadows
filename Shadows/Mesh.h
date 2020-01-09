@@ -56,8 +56,6 @@ public:
 
 	void DrawWithTextures(Shader shader, unsigned int _shadowCubemap = 0) {
 
-		std::cout << textures.size() << std::endl;
-
 		// bind appropriate textures
 		unsigned int diffuseNr = 1;
 		unsigned int specularNr = 1;

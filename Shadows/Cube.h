@@ -8,11 +8,13 @@
 
 #include "stb_image.h"
 
+#include "TransformComponent.h"
+
 #include <iostream>
 #include <vector>
 
 
-class Cube {
+class Cube : public Transform{
 public:
 	
 	unsigned int VAO;

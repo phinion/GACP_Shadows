@@ -68,8 +68,6 @@ Cube::Cube() {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	
-	//diffuseMap = loadTexture(diffuseTexturePath);
-	//specularMap = loadTexture(specularTexturePath);
 };
 
 void Cube::bindTextures(unsigned int _shadowCubemap)
