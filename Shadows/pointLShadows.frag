@@ -44,22 +44,22 @@ float ShadowCalculation(vec3 fragPos)
 	//PCF
 //     float shadow = 0.0;
 //     float bias = 0.05; 
-     float samples = 4.0;
-     float offset = 0.1;
-     for(float x = -offset; x < offset; x += offset / (samples * 0.5))
-     {
-         for(float y = -offset; y < offset; y += offset / (samples * 0.5))
-         {
-             for(float z = -offset; z < offset; z += offset / (samples * 0.5))
-             {
-                 float closestDepth = texture(depthMap, fragToLight + vec3(x, y, z)).r; // use lightdir to lookup cubemap
-                 closestDepth *= far_plane;   // Undo mapping [0;1]
-                 if(currentDepth - bias > closestDepth)
-                     shadow += 1.0;
-             }
-         }
-     }
-     shadow /= (samples * samples * samples);
+//     float samples = 4.0;
+//     float offset = 0.1;
+//     for(float x = -offset; x < offset; x += offset / (samples * 0.5))
+//     {
+//         for(float y = -offset; y < offset; y += offset / (samples * 0.5))
+//         {
+//             for(float z = -offset; z < offset; z += offset / (samples * 0.5))
+//             {
+//                 float closestDepth = texture(depthMap, fragToLight + vec3(x, y, z)).r; // use lightdir to lookup cubemap
+//                 closestDepth *= far_plane;   // Undo mapping [0;1]
+//                 if(currentDepth - bias > closestDepth)
+//                     shadow += 1.0;
+//             }
+//         }
+//     }
+//     shadow /= (samples * samples * samples);
 
 //    float shadow = 0.0;
 //    float bias = 0.15;
@@ -74,9 +74,9 @@ float ShadowCalculation(vec3 fragPos)
 //            shadow += 1.0;
 //    }
 //    shadow /= float(samples);
-//        
+        
 //    // display closestDepth as debug (to visualize depth cubemap)
-//    // FragColor = vec4(vec3(closestDepth / far_plane), 1.0);    
+ FragColor = vec4(vec3(closestDepth / far_plane), 1.0);    
         
     return shadow;
 }
@@ -104,5 +104,5 @@ void main()
     float shadow = shadows ? ShadowCalculation(fs_in.FragPos) : 0.0;                      
     vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
     
-    FragColor = vec4(lighting, 1.0);
+    //FragColor = vec4(lighting, 1.0);
 }

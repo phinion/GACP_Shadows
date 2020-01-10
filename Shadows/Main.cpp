@@ -15,10 +15,15 @@
 #include "Plane.h"
 #include "Skybox.h"
 #include "TransformComponent.h"
+#include "shadowFBO.h"
 
 void setCameraViewTransforms(Shader _shader);
 
-void renderScene(Shader _shader, Room _room, Model _model, Cube _cube, Plane _plane, bool withTextures);
+void addObjects();
+void shadowPass(Shader _shader, Room _room);
+void renderPass(Shader _shader, Room _room);
+
+void renderScene(Shader _shader, Room _room, Model _model, Cube _cube, bool withTextures);
 void renderSkybox(Skybox _skybox, Shader _shader);
 
 void framebuffer_size_callback(GLFWwindow* window, int screenWidth, int screenHeight);
@@ -28,18 +33,22 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // settings
 const unsigned int screenWidth = 1280;
 const unsigned int screenHeight = 720;
-bool shadows = true;
-bool shadowsKeyPressed = false;
+bool displayDepth = false;
+bool displayDepthKeyPressed = false;
 bool MoveLight = true;
 bool MoveLightKeypressed = false;
 
-unsigned int depthCubemap;
+// Shadow framebuffer object class
+ShadowFBO shadowFBO;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), -90.0f, 0.0f);
 float lastX = screenWidth / 2.0f;
 float lastY = screenHeight / 2.0f;
 bool firstMouse = true;
+
+// Vector of objects
+std::vector<Model> objects;
 
 // time
 float deltaTime = 0.0f;	// time between current frame and last frame
@@ -81,34 +90,12 @@ int main() {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
-	// configure depth map FBO
-	// -----------------------
-	const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
-	unsigned int depthMapFBO;
-	glGenFramebuffers(1, &depthMapFBO);
-
-	// create depth cubemap texture
-	glGenTextures(1, &depthCubemap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-	for (unsigned int i = 0; i < 6; ++i)
-	{
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	// attach depth texture as FBO's depth buffer
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//// configure depth map FBO
+	shadowFBO.configureFBO();
 
 	//Create shaders and objects
 	Shader skyboxShader("skybox.vert", "skybox.frag");
-	Shader shader("pointLShadows.vert", "pointLShadows.frag");
+	Shader shader("pointLShadows.vert", "PLTest.frag");
 	Shader simpleDepthShader("pointLShadowsDepth.vert", "pointLShadowsDepth.frag","pointLShadowsDepth.geo");
 
 	// shader configuration
@@ -117,8 +104,10 @@ int main() {
 	shader.setInt("diffuseTexture", 0);
 	shader.setInt("depthMap", 1);
 
-	//Model samus("Samus/DolSzerosuitR1.obj");
+	//Add all models
+	addObjects();
 
+	//add room
 	Room room;
 	room.loadTexture("Textures/Wallpaper/1_Wallpaper design by Natasha Marsall_diffuse.jpg");
 	room.loadTexture("Textures/Wallpaper/1_Wallpaper design by Natasha Marsall_specular.jpg");
@@ -127,18 +116,6 @@ int main() {
 	room.setScale(glm::vec3(10.0f,5.0f,10.0f));
 	room.setPos(glm::vec3(0.0f,5.0f,0.0f));
 
-	Model samus("Models/obj_mesa/obj_mesa.obj");
-	samus.setScale(glm::vec3(3.0f));
-	samus.setPos(glm::vec3(3.0f, 0.0f, 3.0f));
-
-	Cube container;
-	container.loadTexture("container.png");
-	//container.loadTexture("container_specular.png");
-
-	Plane plane;
-	plane.loadTexture("plane.jpg");
-	//plane.loadTexture("plane_specular.jpg");
-	
 	// Skybox textures
 	std::vector<std::string> faces
 	{
@@ -153,7 +130,7 @@ int main() {
 
 	// lighting info
 	// -------------
-	glm::vec3 lightPos(0.0f, 2.0f, 3.0f);
+	glm::vec3 lightPos(2.0f, 1.0f, 5.0f);
 
 	// Render Loop
 	while (!glfwWindowShouldClose(window))
@@ -169,7 +146,7 @@ int main() {
 		// move light position over time
 		if (MoveLight) {
 			lightPos = camera.position;
-			//lightPos.z = sin(glfwGetTime() * 0.5) * 3.0;
+			//lightPos.x = sin(glfwGetTime() * 0.5) * 3.0;
 		}
 
 		// rendering commands here
@@ -179,48 +156,47 @@ int main() {
 		// 0. create depth cubemap transformation matrices
 		// -----------------------------------------------
 		float near_plane = 1.0f;
-		float far_plane = 25.0f;
-		glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane);
-		std::vector<glm::mat4> shadowTransforms;
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
+		float far_plane = 100.0f;
+
+		shadowFBO.createCubemapTransformationMatrices(lightPos,near_plane,far_plane);
 
 		// 1. render scene to depth cubemap
 		// --------------------------------
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+		/*glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-		glClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_DEPTH_BUFFER_BIT);*/
 		simpleDepthShader.use();
-		for (unsigned int i = 0; i < 6; ++i)
-			simpleDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+		shadowFBO.bindFBO(simpleDepthShader);
 		simpleDepthShader.setFloat("far_plane", far_plane);
 		simpleDepthShader.setVec3("lightPos", lightPos);
-		renderScene(simpleDepthShader,room,samus,container,plane,false);
+		shadowPass(simpleDepthShader, room);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		
+				
 		// 2. render scene as normal 
 		// -------------------------
 		glViewport(0, 0, screenWidth, screenHeight);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		shader.use();
-		glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
-		glm::mat4 view = camera.GetViewMatrix();
-		shader.setMat4("projection", projection);
-		shader.setMat4("view", view);
-		// set lighting uniforms
-		shader.setVec3("lightPos", lightPos);
-		shader.setVec3("viewPos", camera.position);
-		shader.setInt("shadows", shadows); // enable/disable shadows by pressing 'SPACE'
+		setCameraViewTransforms(shader);
+
+		//shader.setVec3("lightPos", lightPos);
+		shader.setInt("displayDepth", displayDepth); // enable/disable shadows by pressing 'SPACE'
 		shader.setFloat("far_plane", far_plane);
-		/*glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, woodTexture);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);*/
-		renderScene(shader, room, samus,container,plane,true);
+
+		//shader.setInt("material.diffuse", 0);
+		//shader.setInt("material.specular", 1);
+		//shader.setFloat("material.shininess", 32.0f);
+
+		shader.setVec3("pointLight.position", lightPos);
+		shader.setVec3("pointLight.ambient", 0.2f, 0.2f, 0.2f);
+		shader.setVec3("pointLight.diffuse", 1.0f, 1.0f, 1.0f);
+		shader.setVec3("pointLight.specular", 1.0f, 1.0f, 1.0f);
+		shader.setFloat("pointLight.constant", 1.0f);
+		shader.setFloat("pointLight.linear", 0.045f);
+		shader.setFloat("pointLight.quadratic", 0.0075f);
+
+		renderPass(shader, room);
+
 		renderSkybox(skybox,skyboxShader);
 
 		// check and call events and swap the buffers
@@ -231,6 +207,43 @@ int main() {
 	glfwTerminate();
 
 	return 0;
+}
+
+void addObjects() {
+	/* Frame
+	objects.push_back(Model("Models/"));
+	objects[0].setScale(glm::vec3(1.0f));
+	objects[0].setPos(glm::vec3(0.0f, 0.0f, 0.0f));
+	*/
+
+	objects.push_back(Model("Models/obj_mesa/obj_mesa.obj"));
+	objects[0].setScale(glm::vec3(4.0f));
+	objects[0].setPos(glm::vec3(7.5f, 0.0f, 5.0f));
+
+	objects.push_back(Model("Models/coffeeMug/coffeMug1_free_obj.obj"));
+	objects[1].setScale(glm::vec3(0.02f));
+	objects[1].setPos(glm::vec3(7.5f, 4.0f, 5.0f));
+
+	objects.push_back(Model("Models/bed/krovat-2.obj"));
+	objects[2].setScale(glm::vec3(5.0f));
+	objects[2].setPos(glm::vec3(-5.0f, 0.0f, 5.0f));
+	
+	objects.push_back(Model("Models/wardrobe/Wardrobe  4 door.obj"));
+	objects[3].setScale(glm::vec3(4.0f));
+	objects[3].setPos(glm::vec3(-5.0f, 0.0f, -10.0f));
+
+	objects.push_back(Model("Models/Samus/DolSzerosuitR1.obj"));
+	objects[4].setScale(glm::vec3(0.4f));
+	objects[4].setPos(glm::vec3(0.0f, 0.0f, 0.0f));
+
+	objects.push_back(Model("Models/picture/frida.obj"));
+	objects[5].setScale(glm::vec3(7.5f));
+	objects[5].setPos(glm::vec3(-3.0f, -4.0f, -12.2f));
+
+	objects.push_back(Model("Models/picture/frame.obj"));
+	objects[6].setScale(glm::vec3(7.5f));
+	objects[6].setPos(glm::vec3(-3.0f, -4.0f, -12.2f));
+
 }
 
 void setCameraViewTransforms(Shader _shader) 
@@ -244,86 +257,33 @@ void setCameraViewTransforms(Shader _shader)
 	_shader.setVec3("viewPos", camera.position);
 }
 
-
-void renderScene(Shader _shader, Room _room, Model _model, Cube _cube, Plane _plane, bool withTextures = false)
+void shadowPass(Shader _shader, Room _room)
 {
 	glm::mat4 model = glm::mat4(1.0f);
 
-	/*_shader.setInt("material.diffuse", 0);
-	_shader.setInt("material.specular", 1);
-	_shader.setFloat("material.shininess", 32.0f);
-
-	_shader.setVec3("pointLight.position", camera.position);
-	_shader.setVec3("pointLight.ambient", 0.05f, 0.05f, 0.05f);
-	_shader.setVec3("pointLight.diffuse", 0.8f, 0.8f, 0.8f);
-	_shader.setVec3("pointLight.specular", 1.0f, 1.0f, 1.0f);
-	_shader.setFloat("pointLight.constant", 1.0f);
-	_shader.setFloat("pointLight.linear", 0.09);
-	_shader.setFloat("pointLight.quadratic", 0.032);*/
-
-	//Render Room
+	for (int i = 0; i < objects.size(); i++) {
+		model = objects[i].getModel();
+		_shader.setMat4("model", model);
+		objects[i].Draw();
+	}
+	
 	model = _room.getModel();
 	_shader.setMat4("model", model);
-	if (withTextures){
-		_room.bindTextures(depthCubemap);
-	}
-	else {
-		_room.draw();
-	}
+	_room.draw();
+}
 
-	//// Floor plane
-	/*if (withTextures) {
-		_plane.bindTextures(depthCubemap);
+void renderPass(Shader _shader, Room _room) {
+	glm::mat4 model = glm::mat4(1.0f);
+
+	for (int i = 0; i < objects.size(); i++) {
+		model = objects[i].getModel();
+		_shader.setMat4("model", model);
+		objects[i].DrawWithTextures(_shader, shadowFBO.depthCubemap);
 	}
-	model = glm::mat4(1.0f);
-	model = glm::scale(model, glm::vec3(10.0f, 1.0f, 10.0f));
-	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0));
+	
+	model = _room.getModel();
 	_shader.setMat4("model", model);
-	_plane.draw();*/
-
-
-	//// cubes
-	//if (withTextures){
-	//	_cube.bindTextures(depthCubemap);
-	//}
-	//model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
-	//model = glm::scale(model, glm::vec3(0.5f));
-	//_shader.setMat4("model", model);
-	//_cube.draw();
-	//model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
-	//model = glm::scale(model, glm::vec3(0.75f));
-	//_shader.setMat4("model", model);
-	//_cube.draw();
-	//model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
-	//model = glm::scale(model, glm::vec3(0.5f));
-	//_shader.setMat4("model", model);
-	//_cube.draw();
-	//model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
-	//model = glm::scale(model, glm::vec3(0.5f));
-	//_shader.setMat4("model", model);
-	//_cube.draw();
-	//model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
-	//model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-	//model = glm::scale(model, glm::vec3(0.75f));
-	//_shader.setMat4("model", model);
-	//_cube.draw();
-
-	// model
-	model = _model.getModel();
-	_shader.setMat4("model", model);
-	if (withTextures)
-	{
-		_model.DrawWithTextures(_shader, depthCubemap);
-	}
-	else
-	{
-		_model.Draw();
-	}
+	_room.bindTextures(shadowFBO.depthCubemap);
 }
 
 void renderSkybox(Skybox _skybox,Shader _shader) 
@@ -376,14 +336,14 @@ void processInput(GLFWwindow *window)
 		MoveLightKeypressed = false;
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !shadowsKeyPressed)
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !displayDepthKeyPressed)
 	{
-		shadows = !shadows;
-		shadowsKeyPressed = true;
+		displayDepth = !displayDepth;
+		displayDepthKeyPressed = true;
 	}
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
 	{
-		shadowsKeyPressed = false;
+		displayDepthKeyPressed = false;
 	}
 }
 
@@ -391,3 +351,14 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 }
+//	/*_shader.setInt("material.diffuse", 0);
+//	_shader.setInt("material.specular", 1);
+//	_shader.setFloat("material.shininess", 32.0f);
+//
+//	_shader.setVec3("pointLight.position", camera.position);
+//	_shader.setVec3("pointLight.ambient", 0.05f, 0.05f, 0.05f);
+//	_shader.setVec3("pointLight.diffuse", 0.8f, 0.8f, 0.8f);
+//	_shader.setVec3("pointLight.specular", 1.0f, 1.0f, 1.0f);
+//	_shader.setFloat("pointLight.constant", 1.0f);
+//	_shader.setFloat("pointLight.linear", 0.09);
+//	_shader.setFloat("pointLight.quadratic", 0.032);*/

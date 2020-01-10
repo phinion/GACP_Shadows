@@ -77,6 +77,9 @@
     <ClInclude Include="TransformComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shadowFBO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="simple.frag">
@@ -107,6 +110,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="pointLShadowsDepth.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="PLTest.frag">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

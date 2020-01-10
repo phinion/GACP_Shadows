@@ -10,6 +10,8 @@ void main()
     
     // map to [0;1] range by dividing by far_plane
     lightDistance = lightDistance / far_plane;
+//	vec3 LightToVertex = vec3(FragPos) - lightPos;
+//    float lightDistance = length(LightToVertex);
     
     // write this as modified depth
     gl_FragDepth = lightDistance;
