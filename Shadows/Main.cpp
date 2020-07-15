@@ -94,9 +94,9 @@ int main() {
 	shadowFBO.configureFBO();
 
 	//Create shaders and objects
-	Shader skyboxShader("skybox.vert", "skybox.frag");
-	Shader shader("pointLShadows.vert", "PLTest.frag");
-	Shader simpleDepthShader("pointLShadowsDepth.vert", "pointLShadowsDepth.frag","pointLShadowsDepth.geo");
+	Shader skyboxShader("Shaders/skybox.vert", "Shaders/skybox.frag");
+	Shader shader("Shaders/pointLShadows.vert", "Shaders/PLTest.frag");
+	Shader simpleDepthShader("Shaders/pointLShadowsDepth.vert", "Shaders/pointLShadowsDepth.frag","Shaders/pointLShadowsDepth.geo");
 
 	// shader configuration
 	// --------------------
@@ -119,12 +119,12 @@ int main() {
 	// Skybox textures
 	std::vector<std::string> faces
 	{
-		"skybox_right.jpg",
-		"skybox_left.jpg",
-		"skybox_top.jpg",
-		"skybox_bottom.jpg",
-		"skybox_front.jpg",
-		"skybox_back.jpg"
+		"Textures/skybox_right.jpg",
+		"Textures/skybox_left.jpg",
+		"Textures/skybox_top.jpg",
+		"Textures/skybox_bottom.jpg",
+		"Textures/skybox_front.jpg",
+		"Textures/skybox_back.jpg"
 	};
 	Skybox skybox(faces);
 
