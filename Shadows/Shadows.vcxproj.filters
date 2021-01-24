@@ -82,37 +82,37 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="simple.frag">
+    <None Include="Shaders\pointLShadows.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="simple.vert">
+    <None Include="Shaders\pointLShadows.vert">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="container.frag">
+    <None Include="Shaders\pointLShadowsDepth.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="skybox.frag">
+    <None Include="Shaders\pointLShadowsDepth.geo">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="skybox.vert">
+    <None Include="Shaders\pointLShadowsDepth.vert">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="pointLShadows.frag">
+    <None Include="Shaders\simple.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="pointLShadows.vert">
+    <None Include="Shaders\simple.vert">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="pointLShadowsDepth.frag">
+    <None Include="Shaders\skybox.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="pointLShadowsDepth.geo">
+    <None Include="Shaders\skybox.vert">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="pointLShadowsDepth.vert">
+    <None Include="Shaders\container.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="PLTest.frag">
+    <None Include="Shaders\PLTest.frag">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

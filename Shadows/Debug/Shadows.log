@@ -1,11 +1,2 @@
-﻿  Main.cpp
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(139): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(264): warning C4018: '<': signed/unsigned mismatch
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(278): warning C4018: '<': signed/unsigned mismatch
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(303): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(304): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(308): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(309): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(310): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-d:\yash files\documents\uni work\graphics and computational programming\shadows\shadows\main.cpp(311): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-  Shadows.vcxproj -> D:\Yash Files\Documents\Uni Work\Graphics And Computational Programming\Shadows\Debug\Shadows.exe
+﻿  glad.c
+  Shadows.vcxproj -> D:\Yash Files\Documents\Uni Work\Year 3\Graphics And Computational Programming\Shadows\Debug\Shadows.exe
